@@ -3,6 +3,7 @@ package com.tradingbot.springbot.controller;
 import com.tradingbot.springbot.model.SignalResponse;
 import com.tradingbot.springbot.model.TickData;
 import com.tradingbot.springbot.service.MarketDataService;
+import com.tradingbot.springbot.service.StrategyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 public class TickController {
 
     private final MarketDataService marketDataService;
-
+    private final StrategyService strategyService;
     /**
      * MT5 EA calls this every second with live tick data.
      * Returns a signal: BUY / SELL / HOLD
@@ -33,16 +34,12 @@ public class TickController {
         // Store tick in rolling window
         marketDataService.onTick(tick);
 
-        // Phase 3: always return HOLD until strategy is wired in Phase 4
-        SignalResponse response = SignalResponse.hold(
-                "Collecting data... window=" + marketDataService.getWindowSize()
-        );
+        SignalResponse signal = strategyService.evaluate();
 
-        log.info("Signal out → {} | window={}",
-                response.getSignal(),
-                marketDataService.getWindowSize());
+        log.info("Signal → {} | reason: {}",
+                signal.getSignal(), signal.getReason());
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(signal);
     }
 
     /**
@@ -51,6 +48,9 @@ public class TickController {
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("SpringBot is running | window="
-                + marketDataService.getWindowSize());
+                + marketDataService.getWindowSize()
+                + " | FastMA=" + strategyService.getCurrentFastMa()
+                + " | SlowMA=" + strategyService.getCurrentSlowMa()
+                );
     }
 }
