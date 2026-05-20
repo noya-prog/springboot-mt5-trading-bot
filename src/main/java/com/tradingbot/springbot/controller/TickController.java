@@ -3,6 +3,7 @@ package com.tradingbot.springbot.controller;
 import com.tradingbot.springbot.model.SignalResponse;
 import com.tradingbot.springbot.model.TickData;
 import com.tradingbot.springbot.service.MarketDataService;
+import com.tradingbot.springbot.service.RiskService;
 import com.tradingbot.springbot.service.StrategyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ public class TickController {
 
     private final MarketDataService marketDataService;
     private final StrategyService strategyService;
+    private final RiskService riskService;
     /**
      * MT5 EA calls this every second with live tick data.
      * Returns a signal: BUY / SELL / HOLD
@@ -33,13 +35,13 @@ public class TickController {
 
         // Store tick in rolling window
         marketDataService.onTick(tick);
-
+        // Run Strategy
         SignalResponse signal = strategyService.evaluate();
+        // Validate through risk manager
+        SignalResponse approved = riskService.validate(signal, tick);
+        log.info("Final signal → {} | {}", approved.getSignal(), approved.getReason());
 
-        log.info("Signal → {} | reason: {}",
-                signal.getSignal(), signal.getReason());
-
-        return ResponseEntity.ok(signal);
+        return ResponseEntity.ok(approved);
     }
 
     /**
@@ -47,10 +49,13 @@ public class TickController {
      */
     @GetMapping("/health")
     public ResponseEntity<String> health() {
-        return ResponseEntity.ok("SpringBot is running | window="
-                + marketDataService.getWindowSize()
-                + " | FastMA=" + strategyService.getCurrentFastMa()
-                + " | SlowMA=" + strategyService.getCurrentSlowMa()
+        return ResponseEntity.ok( "SpringBot running"
+                        + " | enabled="    + riskService.isBotEnabled()
+                        + " | window="     + marketDataService.getWindowSize()
+                        + " | FastMA="     + strategyService.getCurrentFastMa()
+                        + " | SlowMA="     + strategyService.getCurrentSlowMa()
+                        + " | dailyLoss=$" + riskService.getDailyLossUsd()
+                        + " / $"           + riskService.getMaxDailyLossUsd()
                 );
     }
 }
