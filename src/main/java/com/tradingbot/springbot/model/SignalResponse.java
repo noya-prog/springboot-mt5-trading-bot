@@ -12,27 +12,45 @@ public class SignalResponse {
     // "BUY", "SELL", or "HOLD"
     private String signal;
 
-    // Fast MA value at time of signal
+    // MA values at time of signal
     private double fastMa;
-
-    // Slow MA value at time of signal
     private double slowMa;
 
-    // Reason
+    // Human-readable reason
     private String reason;
 
+    // Execution parameters — sent to EA and used in OrderSend()
+
+    private double sl;       // stop loss price
+
+    private double tp;       // take profit price
+
+    private double lotSize;  // validated lot size
+
+    // ── Factory methods ─────────────────────────────────────────────
 
     public static SignalResponse hold(String reason) {
-        return new SignalResponse("HOLD", 0, 0, reason);
+        SignalResponse r = new SignalResponse();
+        r.signal = "HOLD";
+        r.reason = reason;
+        return r;
     }
 
     public static SignalResponse buy(double fastMa, double slowMa) {
-        return new SignalResponse("BUY", fastMa, slowMa,
-                "Fast MA crossed above Slow MA");
+        SignalResponse r = new SignalResponse();
+        r.signal  = "BUY";
+        r.fastMa  = fastMa;
+        r.slowMa  = slowMa;
+        r.reason  = "Fast MA crossed above Slow MA";
+        return r;
     }
 
     public static SignalResponse sell(double fastMa, double slowMa) {
-        return new SignalResponse("SELL", fastMa, slowMa,
-                "Fast MA crossed below Slow MA");
+        SignalResponse r = new SignalResponse();
+        r.signal  = "SELL";
+        r.fastMa  = fastMa;
+        r.slowMa  = slowMa;
+        r.reason  = "Fast MA crossed below Slow MA";
+        return r;
     }
 }

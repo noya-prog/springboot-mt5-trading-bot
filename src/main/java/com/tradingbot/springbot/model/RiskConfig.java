@@ -27,4 +27,7 @@ public class RiskConfig {
 
     // Pip value for 5-digit brokers (EURUSD)
     private double pipValue = 0.00010;
+
+    // Maximum number of simultaneously open trades
+    private int maxOpenTrades = 3;
 }

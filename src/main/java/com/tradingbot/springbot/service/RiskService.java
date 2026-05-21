@@ -58,11 +58,23 @@ public class RiskService {
                     String.format("Lot size %.2f out of allowed range", lotSize)
             );
         }
+        // Check 4 — max open trades
+        int openTrades = countOpenTrades();
+        if (openTrades >= riskConfig.getMaxOpenTrades()) {
+            log.warn("Risk check FAILED: max open trades reached ({}/{})",
+                    openTrades, riskConfig.getMaxOpenTrades());
+            return SignalResponse.hold(
+                    String.format("Max open trades reached: %d of %d",
+                            openTrades, riskConfig.getMaxOpenTrades())
+            );
+        }
 
         // All checks passed — enrich signal with SL/TP
         double sl = calculateStopLoss(signal.getSignal(), tick);
         double tp = calculateTakeProfit(signal.getSignal(), tick);
-
+        signal.setSl(sl);
+        signal.setTp(tp);
+        signal.setLotSize(lotSize);
         log.info("Risk check PASSED | lot={} sl={} tp={} dailyLoss=${}",
                 lotSize, sl, tp, dailyLossUsd);
 
@@ -83,7 +95,6 @@ public class RiskService {
                     dailyLossUsd, riskConfig.getMaxDailyLossUsd());
         }
     }
-
     // ── SL/TP calculations ──────────────────────────────────────────
 
     private double calculateStopLoss(String side, TickData tick) {
@@ -108,6 +119,19 @@ public class RiskService {
             lastResetDate = today;
         }
     }
+    /**
+     * Spring Boot asks MT5 how many positions are open
+     * by tracking signals we have approved and not yet closed.
+     * We maintain a simple in-memory counter.
+     */
+    private int openTradeCount = 0;
+
+    public void incrementOpenTrades()  { openTradeCount++; }
+    public void decrementOpenTrades()  {
+        if (openTradeCount > 0) openTradeCount--;
+    }
+    private int countOpenTrades()      { return openTradeCount; }
+    public int  getOpenTradeCount()    { return openTradeCount; }
 
     public double  getDailyLossUsd()       { return dailyLossUsd; }
     public double  getMaxDailyLossUsd()    { return riskConfig.getMaxDailyLossUsd(); }
